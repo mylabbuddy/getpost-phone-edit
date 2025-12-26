@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LabConnect - Minimal Booking System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f9fafb;
+            color: #1f2937;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(229, 231, 235, 1);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .btn-primary {
+            background-color: #2563eb;
+            transition: all 0.2s;
+        }
+
+        .btn-primary:hover {
+            background-color: #1d4ed8;
+            transform: translateY(-1px);
+        }
+
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #2563eb;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8">
+
+    <div class="max-w-4xl mx-auto">
+        <!-- Header -->
+        <header class="text-center mb-10">
+            <h1 class="text-3xl font-light tracking-tight text-gray-900">My Lab <span class="font-semibold text-blue-600">Buddy</span></h1>
+            <p class="text-gray-500 mt-2">Professional Lab Test Management</p>
+        </header>
+
+        <!-- Main Navigation -->
+        <div class="flex justify-center space-x-4 mb-8">
+            <button onclick="switchMode('post')" id="btn-mode-post" class="px-6 py-2 rounded-full font-medium transition-colors bg-blue-600 text-white shadow-lg">Post Data</button>
+            <button onclick="switchMode('get')" id="btn-mode-get" class="px-6 py-2 rounded-full font-medium transition-colors bg-white text-gray-600 border border-gray-200">Get Data</button>
+        </div>
+
+        <!-- Notification Area -->
+        <div id="notification" class="hidden mb-6 p-4 rounded-lg text-sm font-medium text-center"></div>
+
+        <!-- POST DATA SECTION -->
+        <section id="section-post" class="glass-card rounded-2xl p-6 md:p-8 animate-in fade-in duration-500">
+            <h2 class="text-xl font-medium mb-6">Create New Booking</h2>
+            <form id="bookingForm" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-gray-400 mb-1">Patient Name</label>
+                    <input type="text" name="patientName" required placeholder="Enter Patient Name" class="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-gray-400 mb-1">Phone Number</label>
+                    <input type="tel" name="phone" required placeholder="Enter Phone Number" class="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-gray-400 mb-1">Lab Selection</label>
+                    <select name="lab" class="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none">
+                        <option>Prognosis Laboratories</option>
+                        <option>Healthians</option>
+                        <option>C15 Diagnostics</option>
+                        <option>Redcliffe</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-gray-400 mb-1">Appointment Date</label>
+                    <input type="date" name="date" required class="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-semibold uppercase text-gray-400 mb-1">Lab Test Add</label>
+                    <input type="text" name="test" required placeholder="e.g., Blood Sugar, Lipid Profile" class="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                
+                <div class="md:col-span-2 mt-4">
+                    <button type="submit" id="submitBtn" class="w-full btn-primary text-white font-semibold py-3 rounded-xl flex items-center justify-center space-x-2">
+                        <span>Confirm Booking</span>
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <!-- GET DATA SECTION -->
+        <section id="section-get" class="hidden glass-card rounded-2xl p-6 md:p-8 animate-in fade-in duration-500">
+            <h2 class="text-xl font-medium mb-6">Retrieve Bookings</h2>
+            <div class="flex space-x-2 mb-8">
+                <input type="tel" id="searchPhone" placeholder="Enter Phone Number" class="flex-1 px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none">
+                <button onclick="fetchData()" id="fetchBtn" class="bg-gray-900 text-white px-6 py-2 rounded-lg font-medium hover:bg-black transition-colors">Search</button>
+            </div>
+
+            <div id="resultsArea" class="space-y-4">
+                <p class="text-gray-400 text-center py-10 italic">Enter a phone number to see results.</p>
+            </div>
+        </section>
+    </div>
+
+    <!-- Edit Modal Overlay -->
+    <div id="editModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl w-full max-w-md p-6">
+            <h3 class="text-lg font-semibold mb-4">Edit Booking</h3>
+            <form id="editForm" class="space-y-4">
+                <input type="hidden" name="bookingId">
+                <input type="hidden" name="rowIndex">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 uppercase">Patient Name</label>
+                    <input type="text" name="patientName" class="w-full px-3 py-2 border rounded-lg mt-1">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 uppercase">Test</label>
+                    <input type="text" name="test" class="w-full px-3 py-2 border rounded-lg mt-1">
+                </div>
+                <div class="flex justify-end space-x-3 mt-6">
+                    <button type="button" onclick="closeEditModal()" class="px-4 py-2 text-gray-500 hover:text-gray-700">Cancel</button>
+                    <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg font-medium">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // REPLACE WITH YOUR GOOGLE APPS SCRIPT WEB APP URL
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxXBzpW4aYBq3GRAn3lvZ9FKtw2NelR8SxmvBGSiTuqefpGEqmR-WIrixeo0JN0i5gOYg/exec";
+
+        // Navigation
+        function switchMode(mode) {
+            const postSec = document.getElementById('section-post');
+            const getSec = document.getElementById('section-get');
+            const btnPost = document.getElementById('btn-mode-post');
+            const btnGet = document.getElementById('btn-mode-get');
+
+            if (mode === 'post') {
+                postSec.classList.remove('hidden');
+                getSec.classList.add('hidden');
+                btnPost.classList.replace('bg-white', 'bg-blue-600');
+                btnPost.classList.replace('text-gray-600', 'text-white');
+                btnGet.classList.replace('bg-blue-600', 'bg-white');
+                btnGet.classList.replace('text-white', 'text-gray-600');
+            } else {
+                postSec.classList.add('hidden');
+                getSec.classList.remove('hidden');
+                btnGet.classList.replace('bg-white', 'bg-blue-600');
+                btnGet.classList.replace('text-gray-600', 'text-white');
+                btnPost.classList.replace('bg-blue-600', 'bg-white');
+                btnPost.classList.replace('text-white', 'text-gray-600');
+            }
+        }
+
+        function showNotification(msg, isError = false) {
+            const div = document.getElementById('notification');
+            div.textContent = msg;
+            div.className = `mb-6 p-4 rounded-lg text-sm font-medium text-center ${isError ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`;
+            div.classList.remove('hidden');
+            setTimeout(() => div.classList.add('hidden'), 5000);
+        }
+
+        // Post Data
+        document.getElementById('bookingForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            const originalContent = btn.innerHTML;
+            
+            btn.disabled = true;
+            btn.innerHTML = '<div class="loading-spinner"></div>';
+
+            const formData = new FormData(e.target);
+            const data = {
+                action: 'post',
+                date: formData.get('date'),
+                lab: formData.get('lab'),
+                patientName: formData.get('patientName'),
+                test: formData.get('test'),
+                phone: formData.get('phone'),
+                bookingId: 'MLB' + Math.random().toString(36).substr(2, 9).toUpperCase(),
+                timestamp: new Date().toLocaleString()
+            };
+
+            try {
+                // Using fetch with no-cors might be needed for simple scripts, 
+                // but proper Web Apps require JSONP or CORS handling in GS
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors', // standard for Apps Script simple posts
+                    cache: 'no-cache',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                showNotification("Booking saved successfully!");
+                e.target.reset();
+            } catch (err) {
+                showNotification("Error saving booking. Check Script URL.", true);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalContent;
+            }
+        });
+
+        // Get Data
+        async function fetchData() {
+            const phone = document.getElementById('searchPhone').value;
+            if (!phone) return showNotification("Please enter a phone number", true);
+
+            const btn = document.getElementById('fetchBtn');
+            const container = document.getElementById('resultsArea');
+            btn.disabled = true;
+            btn.innerText = "Searching...";
+            container.innerHTML = '<div class="flex justify-center py-10"><div class="loading-spinner"></div></div>';
+
+            try {
+                const response = await fetch(`${SCRIPT_URL}?action=get&phone=${phone}`);
+                const result = await response.json();
+
+                if (result.status === 'success' && result.data.length > 0) {
+                    renderList(result.data);
+                } else {
+                    container.innerHTML = `<p class="text-center text-gray-500 py-10">No bookings found for ${phone}</p>`;
+                }
+            } catch (err) {
+                showNotification("Connection failed. Ensure Apps Script URL is correct.", true);
+                container.innerHTML = "";
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Search";
+            }
+        }
+
+        function renderList(bookings) {
+            const container = document.getElementById('resultsArea');
+            container.innerHTML = "";
+
+            bookings.forEach(item => {
+                const editCount = parseInt(item.editCount) || 0;
+                const canEdit = editCount < 2;
+
+                const card = document.createElement('div');
+                card.className = "p-4 border border-gray-100 rounded-xl bg-gray-50 flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0";
+                card.innerHTML = `
+                    <div class="flex-1">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">${item.bookingId}</span>
+                            <span class="text-xs text-gray-400">${item.timestamp}</span>
+                        </div>
+                        <h4 class="font-semibold text-lg mt-1">${item.patientName}</h4>
+                        <p class="text-sm text-gray-600">${item.lab} • <span class="text-blue-500">${item.test}</span></p>
+                        <p class="text-xs text-gray-400 mt-1">Date: ${item.date} | Edits: ${editCount}/2</p>
+                    </div>
+                    <div>
+                        ${canEdit ? 
+                            `<button onclick='openEditModal(${JSON.stringify(item)})' class="px-4 py-2 border border-blue-200 text-blue-600 rounded-lg text-sm font-medium hover:bg-blue-50 transition-colors">Edit Booking</button>` : 
+                            `<span class="text-xs text-red-400 font-medium">Edit limit reached</span>`
+                        }
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // Edit Logic
+        function openEditModal(item) {
+            const form = document.getElementById('editForm');
+            form.bookingId.value = item.bookingId;
+            form.rowIndex.value = item.rowIndex; // We'll pass row index from backend
+            form.patientName.value = item.patientName;
+            form.test.value = item.test;
+            document.getElementById('editModal').classList.replace('hidden', 'flex');
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').classList.replace('flex', 'hidden');
+        }
+
+        document.getElementById('editForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = {
+                action: 'edit',
+                bookingId: formData.get('bookingId'),
+                rowIndex: formData.get('rowIndex'),
+                patientName: formData.get('patientName'),
+                test: formData.get('test')
+            };
+
+            closeEditModal();
+            showNotification("Updating booking...");
+
+            try {
+                // Use POST for editing too
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    cache: 'no-cache',
+                    body: JSON.stringify(data)
+                });
+                
+                showNotification("Update request sent! Refreshing list...");
+                setTimeout(fetchData, 1500);
+            } catch (err) {
+                showNotification("Update failed", true);
+            }
+        });
+
+    </script>
+</body>
+</html>
